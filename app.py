@@ -4,27 +4,21 @@ from pptx import Presentation
 from transformers import pipeline
 
 st.title("OmniStudy AI")
-
 st.write("Upload a PDF or PPT to get summary and important questions.")
 
-@st.cache_resource
-def load_model():
-    model = pipeline(
-        "text2text-generation",
-        model="google/flan-t5-small"
-    )
-    return model
-
-model = load_model()
-
+# Load model (without cache first to avoid error)
+summarizer = pipeline(
+    "text2text-generation",
+    model="google/flan-t5-small"
+)
 
 def read_pdf(file):
     text = ""
     with pdfplumber.open(file) as pdf:
         for page in pdf.pages:
-            t = page.extract_text()
-            if t:
-                text += t
+            content = page.extract_text()
+            if content:
+                text += content
     return text
 
 
@@ -39,38 +33,33 @@ def read_ppt(file):
 
 
 def summarize(text):
-    text = text[:2000]
-    prompt = f"Summarize the following study material:\n{text}"
-    result = model(prompt, max_length=150)
+    text = text[:1500]
+    prompt = "Summarize this study material: " + text
+    result = summarizer(prompt, max_length=120)
     return result[0]["generated_text"]
 
 
 def generate_questions(text):
-    prompt = f"Generate 5 important exam questions from this topic:\n{text}"
-    result = model(prompt, max_length=150)
+    prompt = "Generate 5 important exam questions from this topic: " + text
+    result = summarizer(prompt, max_length=120)
     return result[0]["generated_text"]
 
 
-uploaded_file = st.file_uploader(
-    "Upload PDF or PPT",
-    type=["pdf", "pptx"]
-)
+file = st.file_uploader("Upload PDF or PPT", type=["pdf", "pptx"])
 
-if uploaded_file:
+if file:
 
-    if uploaded_file.name.endswith(".pdf"):
-        text = read_pdf(uploaded_file)
+    if file.name.endswith(".pdf"):
+        text = read_pdf(file)
     else:
-        text = read_ppt(uploaded_file)
+        text = read_ppt(file)
 
     st.subheader("Summary")
 
     summary = summarize(text)
-
     st.write(summary)
 
     st.subheader("Important Questions")
 
     questions = generate_questions(summary)
-
     st.write(questions)
